@@ -5,8 +5,14 @@ import time
 
 
 class DataSim(object):
-    def __init__(self, box_size=5.):
+    def __init__(self, n_balls=5, box_size=5.,
+                 interaction_strength=1., noise_var=0.):
         self.box_size = box_size
+        self.n_balls = n_balls
+        self.interaction_strength = interaction_strength
+        self.noise_var = noise_var
+        self._delta_T = 0.001
+        self._max_F = 0.1 / self._delta_T
 
     def _l2(self, A, B):
         """
@@ -50,16 +56,12 @@ class DataSim(object):
 class SpringSim(DataSim):
     def __init__(self, n_balls=5, box_size=5., loc_std=.5, vel_norm=.5,
                  interaction_strength=.1, noise_var=0.):
-        super(SpringSim, self).__init__(box_size=box_size)
-        self.n_balls = n_balls
+        super(SpringSim, self).__init__(n_balls=n_balls, box_size=box_size,
+            interaction_strength=interaction_strength, noise_var=noise_var)
         self.loc_std = loc_std
         self.vel_norm = vel_norm
-        self.interaction_strength = interaction_strength
-        self.noise_var = noise_var
 
         self._spring_types = np.array([0., 0.5, 1.])
-        self._delta_T = 0.001
-        self._max_F = 0.1 / self._delta_T
 
     def _energy(self, loc, vel, edges):
         # disables division by zero warning, since I fix it with fill_diagonal
@@ -149,16 +151,12 @@ class SpringSim(DataSim):
 class ChargedParticlesSim(DataSim):
     def __init__(self, n_balls=5, box_size=5., loc_std=1., vel_norm=0.5,
                  interaction_strength=1., noise_var=0.):
-        super(ChargedParticlesSim, self).__init__(box_size=box_size)
-        self.n_balls = n_balls
+        super(ChargedParticlesSim, self).__init__(n_balls=n_balls, box_size=box_size,
+            interaction_strength=interaction_strength, noise_var=noise_var)
         self.loc_std = loc_std
         self.vel_norm = vel_norm
-        self.interaction_strength = interaction_strength
-        self.noise_var = noise_var
 
         self._charge_types = np.array([-1., 0., 1.])
-        self._delta_T = 0.001
-        self._max_F = 0.1 / self._delta_T
 
     def _energy(self, loc, vel, edges):
 
@@ -348,7 +346,6 @@ class SpringSimTests(DataSimTests):
 
     def new_test_object(self):
         return SpringSim()
-
 
 
 class ChargedParticlesSimTests(DataSimTests):
