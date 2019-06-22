@@ -3,34 +3,23 @@ import matplotlib.pyplot as plt
 import time
 
 
-class SpringSim(object):
-    def __init__(self, n_balls=5, box_size=5., loc_std=.5, vel_norm=.5,
-                 interaction_strength=.1, noise_var=0.):
-        self.n_balls = n_balls
+
+class DataSim(object):
+    def __init__(self, box_size=5.):
         self.box_size = box_size
-        self.loc_std = loc_std
-        self.vel_norm = vel_norm
-        self.interaction_strength = interaction_strength
-        self.noise_var = noise_var
 
-        self._spring_types = np.array([0., 0.5, 1.])
-        self._delta_T = 0.001
-        self._max_F = 0.1 / self._delta_T
-
-    def _energy(self, loc, vel, edges):
-        # disables division by zero warning, since I fix it with fill_diagonal
-        with np.errstate(divide='ignore'):
-
-            K = 0.5 * (vel ** 2).sum()
-            U = 0
-            for i in range(loc.shape[1]):
-                for j in range(loc.shape[1]):
-                    if i != j:
-                        r = loc[:, i] - loc[:, j]
-                        dist = np.sqrt((r ** 2).sum())
-                        U += 0.5 * self.interaction_strength * edges[
-                            i, j] * (dist ** 2) / 2
-            return U + K
+    def _l2(self, A, B):
+        """
+        Input: A is a Nxd matrix
+               B is a Mxd matirx
+        Output: dist is a NxM matrix where dist[i,j] is the square norm
+            between A[i,:] and B[j,:]
+        i.e. dist[i,j] = ||A[i,:]-B[j,:]||^2
+        """
+        A_norm = (A ** 2).sum(axis=1).reshape(A.shape[0], 1)
+        B_norm = (B ** 2).sum(axis=1).reshape(1, B.shape[0])
+        dist = A_norm + B_norm - 2 * A.dot(B.transpose())
+        return dist
 
     def _clamp(self, loc, vel):
         '''
@@ -57,18 +46,35 @@ class SpringSim(object):
 
         return loc, vel
 
-    def _l2(self, A, B):
-        """
-        Input: A is a Nxd matrix
-               B is a Mxd matirx
-        Output: dist is a NxM matrix where dist[i,j] is the square norm
-            between A[i,:] and B[j,:]
-        i.e. dist[i,j] = ||A[i,:]-B[j,:]||^2
-        """
-        A_norm = (A ** 2).sum(axis=1).reshape(A.shape[0], 1)
-        B_norm = (B ** 2).sum(axis=1).reshape(1, B.shape[0])
-        dist = A_norm + B_norm - 2 * A.dot(B.transpose())
-        return dist
+
+class SpringSim(DataSim):
+    def __init__(self, n_balls=5, box_size=5., loc_std=.5, vel_norm=.5,
+                 interaction_strength=.1, noise_var=0.):
+        super(SpringSim, self).__init__(box_size=box_size)
+        self.n_balls = n_balls
+        self.loc_std = loc_std
+        self.vel_norm = vel_norm
+        self.interaction_strength = interaction_strength
+        self.noise_var = noise_var
+
+        self._spring_types = np.array([0., 0.5, 1.])
+        self._delta_T = 0.001
+        self._max_F = 0.1 / self._delta_T
+
+    def _energy(self, loc, vel, edges):
+        # disables division by zero warning, since I fix it with fill_diagonal
+        with np.errstate(divide='ignore'):
+
+            K = 0.5 * (vel ** 2).sum()
+            U = 0
+            for i in range(loc.shape[1]):
+                for j in range(loc.shape[1]):
+                    if i != j:
+                        r = loc[:, i] - loc[:, j]
+                        dist = np.sqrt((r ** 2).sum())
+                        U += 0.5 * self.interaction_strength * edges[
+                            i, j] * (dist ** 2) / 2
+            return U + K
 
     def sample_trajectory(self, T=10000, sample_freq=10,
                           spring_prob=[1. / 2, 0, 1. / 2]):
@@ -140,11 +146,11 @@ class SpringSim(object):
             return loc, vel, edges
 
 
-class ChargedParticlesSim(object):
+class ChargedParticlesSim(DataSim):
     def __init__(self, n_balls=5, box_size=5., loc_std=1., vel_norm=0.5,
                  interaction_strength=1., noise_var=0.):
+        super(ChargedParticlesSim, self).__init__(box_size=box_size)
         self.n_balls = n_balls
-        self.box_size = box_size
         self.loc_std = loc_std
         self.vel_norm = vel_norm
         self.interaction_strength = interaction_strength
@@ -153,19 +159,6 @@ class ChargedParticlesSim(object):
         self._charge_types = np.array([-1., 0., 1.])
         self._delta_T = 0.001
         self._max_F = 0.1 / self._delta_T
-
-    def _l2(self, A, B):
-        """
-        Input: A is a Nxd matrix
-               B is a Mxd matirx
-        Output: dist is a NxM matrix where dist[i,j] is the square norm
-            between A[i,:] and B[j,:]
-        i.e. dist[i,j] = ||A[i,:]-B[j,:]||^2
-        """
-        A_norm = (A ** 2).sum(axis=1).reshape(A.shape[0], 1)
-        B_norm = (B ** 2).sum(axis=1).reshape(1, B.shape[0])
-        dist = A_norm + B_norm - 2 * A.dot(B.transpose())
-        return dist
 
     def _energy(self, loc, vel, edges):
 
@@ -182,31 +175,6 @@ class ChargedParticlesSim(object):
                         U += 0.5 * self.interaction_strength * edges[
                             i, j] / dist
             return U + K
-
-    def _clamp(self, loc, vel):
-        '''
-        :param loc: 2xN location at one time stamp
-        :param vel: 2xN velocity at one time stamp
-        :return: location and velocity after hiting walls and returning after
-            elastically colliding with walls
-        '''
-        assert (np.all(loc < self.box_size * 3))
-        assert (np.all(loc > -self.box_size * 3))
-
-        over = loc > self.box_size
-        loc[over] = 2 * self.box_size - loc[over]
-        assert (np.all(loc <= self.box_size))
-
-        # assert(np.all(vel[over]>0))
-        vel[over] = -np.abs(vel[over])
-
-        under = loc < -self.box_size
-        loc[under] = -2 * self.box_size - loc[under]
-        # assert (np.all(vel[under] < 0))
-        assert (np.all(loc >= -self.box_size))
-        vel[under] = np.abs(vel[under])
-
-        return loc, vel
 
     def sample_trajectory(self, T=10000, sample_freq=10,
                           charge_prob=[1. / 2, 0, 1. / 2]):
@@ -285,7 +253,7 @@ class ChargedParticlesSim(object):
             return loc, vel, edges
 
 
-if __name__ == '__main__':
+if False: # old __main__
     sim = SpringSim()
     # sim = ChargedParticlesSim()
 
@@ -307,3 +275,100 @@ if __name__ == '__main__':
                 range(loc.shape[0])]
     plt.plot(energies)
     plt.show()
+
+
+
+# UNIT TESTS
+
+class DataSimTests(object):
+    def run(self):
+        print('\nDataSimTests')
+        assert(self._l2_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        print(':) All test pass!')
+
+    def new_test_object(self):
+        return DataSim()
+
+    def _l2_test(self, sim): # TODO use assymmetric matrices Mxd & Nxd
+        a = np.ones((3,3)) * 5
+        b = np.ones((3,3)) * 3
+
+        expected = np.ones((3,3)) * 12
+
+        actual = sim._l2(a,b)
+
+        return (expected == actual).all()
+
+    def _clamp_test_no_bounce_pos(self, sim):
+        return self.clamp_test_helper(sim, 4.9, 1.) # NOTE assumes box size 5
+
+    def _clamp_test_bounce_pos(self, sim):
+        return self.clamp_test_helper(sim, 5.1, 1.) # NOTE assumes box size 5
+
+    def _clamp_test_no_bounce_neg(self, sim):
+        return self.clamp_test_helper(sim, -4.9, -1.) # NOTE assumes box size 5
+
+    def _clamp_test_bounce_neg(self, sim):
+        return self.clamp_test_helper(sim, -5.1, -1.) # NOTE assumes box size 5
+
+    # helpers
+    def clamp_test_helper(self, sim, loc_offset, vel_factor):
+        locations = np.zeros((2, 3)) + loc_offset
+        if loc_offset > sim.box_size:
+            expected_loc = 2. * sim.box_size - locations
+        elif loc_offset < -sim.box_size:
+            expected_loc = -2. * sim.box_size - locations
+        else:
+            expected_loc = locations
+
+        velocities = np.ones((2,3)) * vel_factor
+        if not (expected_loc == locations).all():
+            expected_vel = velocities * -1.
+        else:
+            expected_vel = velocities
+
+        actual_loc, actual_vel = sim._clamp(locations, velocities)
+
+        return (expected_loc == actual_loc).all() and (expected_vel == actual_vel).all()
+
+
+class SpringSimTests(DataSimTests):
+    def run(self):
+        print('\nSpringSimTests')
+        assert(self._l2_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        print(':) All test pass!')
+
+    def new_test_object(self):
+        return SpringSim()
+
+
+
+class ChargedParticlesSimTests(DataSimTests):
+    def run(self):
+        print('\nChargedParticlesSimTests')
+        assert(self._l2_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        print(':) All test pass!')
+
+    def new_test_object(self):
+        return ChargedParticlesSim()
+
+
+
+if __name__ == '__main__': # unit tests
+    DataSimTests().run()
+    SpringSimTests().run()
+    ChargedParticlesSimTests().run()
+    print('')
+
