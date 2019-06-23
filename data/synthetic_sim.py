@@ -5,10 +5,12 @@ import time
 
 
 class DataSim(object):
-    def __init__(self, n_balls=5, box_size=5.,
+    def __init__(self, n_balls=5, box_size=5., loc_std=.5, vel_norm=.5,
                  interaction_strength=1., noise_var=0.):
         self.box_size = box_size
         self.n_balls = n_balls
+        self.loc_std = loc_std
+        self.vel_norm = vel_norm
         self.interaction_strength = interaction_strength
         self.noise_var = noise_var
         self._delta_T = 0.001
@@ -57,9 +59,8 @@ class SpringSim(DataSim):
     def __init__(self, n_balls=5, box_size=5., loc_std=.5, vel_norm=.5,
                  interaction_strength=.1, noise_var=0.):
         super(SpringSim, self).__init__(n_balls=n_balls, box_size=box_size,
+            loc_std=loc_std, vel_norm=vel_norm,
             interaction_strength=interaction_strength, noise_var=noise_var)
-        self.loc_std = loc_std
-        self.vel_norm = vel_norm
 
         self._spring_types = np.array([0., 0.5, 1.])
 
@@ -152,9 +153,8 @@ class ChargedParticlesSim(DataSim):
     def __init__(self, n_balls=5, box_size=5., loc_std=1., vel_norm=0.5,
                  interaction_strength=1., noise_var=0.):
         super(ChargedParticlesSim, self).__init__(n_balls=n_balls, box_size=box_size,
+            loc_std=loc_std, vel_norm=vel_norm,
             interaction_strength=interaction_strength, noise_var=noise_var)
-        self.loc_std = loc_std
-        self.vel_norm = vel_norm
 
         self._charge_types = np.array([-1., 0., 1.])
 
@@ -282,10 +282,10 @@ class DataSimTests(object):
     def run(self):
         print('\nDataSimTests')
         assert(self._l2_test(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
-        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg_test(self.new_test_object()))
         print(':) All test pass!')
 
     def new_test_object(self):
@@ -301,16 +301,16 @@ class DataSimTests(object):
 
         return (expected == actual).all()
 
-    def _clamp_test_no_bounce_pos(self, sim):
+    def _clamp_test_no_bounce_pos_test(self, sim):
         return self.clamp_test_helper(sim, 4.9, 1.) # NOTE assumes box size 5
 
-    def _clamp_test_bounce_pos(self, sim):
+    def _clamp_test_bounce_pos_test(self, sim):
         return self.clamp_test_helper(sim, 5.1, 1.) # NOTE assumes box size 5
 
-    def _clamp_test_no_bounce_neg(self, sim):
+    def _clamp_test_no_bounce_neg_test(self, sim):
         return self.clamp_test_helper(sim, -4.9, -1.) # NOTE assumes box size 5
 
-    def _clamp_test_bounce_neg(self, sim):
+    def _clamp_test_bounce_neg_test(self, sim):
         return self.clamp_test_helper(sim, -5.1, -1.) # NOTE assumes box size 5
 
     # helpers
@@ -338,10 +338,10 @@ class SpringSimTests(DataSimTests):
     def run(self):
         print('\nSpringSimTests')
         assert(self._l2_test(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
-        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg_test(self.new_test_object()))
         print(':) All test pass!')
 
     def new_test_object(self):
@@ -352,14 +352,18 @@ class ChargedParticlesSimTests(DataSimTests):
     def run(self):
         print('\nChargedParticlesSimTests')
         assert(self._l2_test(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_bounce_pos(self.new_test_object()))
-        assert(self._clamp_test_no_bounce_neg(self.new_test_object()))
-        assert(self._clamp_test_bounce_neg(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_pos_test(self.new_test_object()))
+        assert(self._clamp_test_no_bounce_neg_test(self.new_test_object()))
+        assert(self._clamp_test_bounce_neg_test(self.new_test_object()))
+        assert(self.ctor_loc_std_test(self.new_test_object()))
         print(':) All test pass!')
 
     def new_test_object(self):
         return ChargedParticlesSim()
+
+    def ctor_loc_std_test(self, sim):
+        return sim.loc_std == 1.
 
 
 
