@@ -64,20 +64,21 @@ class SpringSim(DataSim):
 
         self._spring_types = np.array([0., 0.5, 1.])
 
-    def _energy(self, loc, vel, edges):
-        # disables division by zero warning, since I fix it with fill_diagonal
-        with np.errstate(divide='ignore'):
+    # NOTE keeping for hysterical raisins
+    # def _energy(self, loc, vel, edges):
+    #     # disables division by zero warning, since I fix it with fill_diagonal
+    #     with np.errstate(divide='ignore'):
 
-            K = 0.5 * (vel ** 2).sum()
-            U = 0
-            for i in range(loc.shape[1]):
-                for j in range(loc.shape[1]):
-                    if i != j:
-                        r = loc[:, i] - loc[:, j]
-                        dist = np.sqrt((r ** 2).sum())
-                        U += 0.5 * self.interaction_strength * edges[
-                            i, j] * (dist ** 2) / 2
-            return U + K
+    #         K = 0.5 * (vel ** 2).sum()
+    #         U = 0
+    #         for i in range(loc.shape[1]):
+    #             for j in range(loc.shape[1]):
+    #                 if i != j:
+    #                     r = loc[:, i] - loc[:, j]
+    #                     dist = np.sqrt((r ** 2).sum())
+    #                     U += 0.5 * self.interaction_strength * edges[
+    #                         i, j] * (dist ** 2) / 2
+    #         return U + K
 
     def sample_trajectory(self, T=10000, sample_freq=10,
                           spring_prob=[1. / 2, 0, 1. / 2]):
@@ -157,22 +158,20 @@ class ChargedParticlesSim(DataSim):
             interaction_strength=interaction_strength, noise_var=noise_var)
 
         self._charge_types = np.array([-1., 0., 1.])
-
-    def _energy(self, loc, vel, edges):
-
-        # disables division by zero warning, since I fix it with fill_diagonal
-        with np.errstate(divide='ignore'):
-
-            K = 0.5 * (vel ** 2).sum()
-            U = 0
-            for i in range(loc.shape[1]):
-                for j in range(loc.shape[1]):
-                    if i != j:
-                        r = loc[:, i] - loc[:, j]
-                        dist = np.sqrt((r ** 2).sum())
-                        U += 0.5 * self.interaction_strength * edges[
-                            i, j] / dist
-            return U + K
+    # NOTE keeping for hysterical raisins
+    # def _energy(self, loc, vel, edges):
+    #     # disables division by zero warning, since I fix it with fill_diagonal
+    #     with np.errstate(divide='ignore'):
+    #         K = 0.5 * (vel ** 2).sum()
+    #         U = 0
+    #         for i in range(loc.shape[1]):
+    #             for j in range(loc.shape[1]):
+    #                 if i != j:
+    #                     r = loc[:, i] - loc[:, j]
+    #                     dist = np.sqrt((r ** 2).sum())
+    #                     U += 0.5 * self.interaction_strength * edges[
+    #                         i, j] / dist
+    #         return U + K
 
     def sample_trajectory(self, T=10000, sample_freq=10,
                           charge_prob=[1. / 2, 0, 1. / 2]):
@@ -251,28 +250,29 @@ class ChargedParticlesSim(DataSim):
             return loc, vel, edges
 
 
-if False: # old __main__
-    sim = SpringSim()
+# NOTE keeping for hysterical raisins
+# if False: # old __main__
+    # sim = SpringSim()
     # sim = ChargedParticlesSim()
 
-    t = time.time()
-    loc, vel, edges = sim.sample_trajectory(T=5000, sample_freq=100)
+    # t = time.time()
+    # loc, vel, edges = sim.sample_trajectory(T=5000, sample_freq=100)
 
-    print(edges)
-    print("Simulation time: {}".format(time.time() - t))
-    vel_norm = np.sqrt((vel ** 2).sum(axis=1))
-    plt.figure()
-    axes = plt.gca()
-    axes.set_xlim([-5., 5.])
-    axes.set_ylim([-5., 5.])
-    for i in range(loc.shape[-1]):
-        plt.plot(loc[:, 0, i], loc[:, 1, i])
-        plt.plot(loc[0, 0, i], loc[0, 1, i], 'd')
-    plt.figure()
-    energies = [sim._energy(loc[i, :, :], vel[i, :, :], edges) for i in
-                range(loc.shape[0])]
-    plt.plot(energies)
-    plt.show()
+    # print(edges)
+    # print("Simulation time: {}".format(time.time() - t))
+    # vel_norm = np.sqrt((vel ** 2).sum(axis=1))
+    # plt.figure()
+    # axes = plt.gca()
+    # axes.set_xlim([-5., 5.])
+    # axes.set_ylim([-5., 5.])
+    # for i in range(loc.shape[-1]):
+    #     plt.plot(loc[:, 0, i], loc[:, 1, i])
+    #     plt.plot(loc[0, 0, i], loc[0, 1, i], 'd')
+    # plt.figure()
+    # energies = [sim._energy(loc[i, :, :], vel[i, :, :], edges) for i in
+    #             range(loc.shape[0])]
+    # plt.plot(energies)
+    # plt.show()
 
 
 
@@ -338,10 +338,13 @@ class SpringSimTests(DataSimTests):
     def run(self):
         print('\nSpringSimTests')
         assert(self._l2_test(self.new_test_object()))
+
         assert(self._clamp_test_no_bounce_pos_test(self.new_test_object()))
         assert(self._clamp_test_bounce_pos_test(self.new_test_object()))
         assert(self._clamp_test_no_bounce_neg_test(self.new_test_object()))
         assert(self._clamp_test_bounce_neg_test(self.new_test_object()))
+
+        assert(self._energy_test(self.new_test_object()))
         print(':) All test pass!')
 
     def new_test_object(self):
@@ -356,7 +359,10 @@ class ChargedParticlesSimTests(DataSimTests):
         assert(self._clamp_test_bounce_pos_test(self.new_test_object()))
         assert(self._clamp_test_no_bounce_neg_test(self.new_test_object()))
         assert(self._clamp_test_bounce_neg_test(self.new_test_object()))
+
         assert(self.ctor_loc_std_test(self.new_test_object()))
+
+        assert(self._energy_test(self.new_test_object()))
         print(':) All test pass!')
 
     def new_test_object(self):
